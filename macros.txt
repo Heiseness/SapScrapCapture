@@ -1,0 +1,336 @@
+Sub pregunta()
+
+    Dim answer As VbMsgBoxResult
+    answer = MsgBox("¿Deseas iniciar el proceso? (Recuerda que una vez iniciado, puede detenerlo dando Esc en el teclado y End en la ventana emergente)", vbQuestion + vbYesNo, "Confirmación")
+
+    If answer = vbYes Then
+        Application.Run "PERSONAL.XLSB!numeros"
+    Else
+    ' Opcional: Código a ejecutar si se selecciona "No" en la confirmación
+    End If
+
+End Sub
+
+Sub numeros()
+'
+' numeros Macro
+' Desarollado por Felipe Rivera Gomez al 13 de Junio del 2023
+' este jale es del adrian
+' Version 1.0.2
+' Ultima Actualizicacion: 4 de Julio del 2023
+
+    Dim newHour As Integer
+    Dim newMinute As Integer
+    Dim newSecond As Integer
+    Dim waitTime As Date
+    Dim Pageqnty As Variant
+    
+    Dim documento As Variant
+    Dim headDocQnty As Variant
+    Dim ws2 As Worksheet
+    Dim i As Long
+    Dim destino As Worksheet
+    
+    Dim shell As Object
+    
+    Dim appDataPath As String
+    
+    
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim filterRange As Range
+    
+    Dim reversa As Variant
+    
+    reversa = Worksheets(1).Range("H1").value
+    
+    Worksheets(1).Range("J1").value = reversa
+    appDataPath = Environ("APPDATA")
+    
+    Dim scriptPath As String
+    scriptPath = appDataPath & "\SAP\Scripts\Script1.vbs"
+    Set shell = CreateObject("WScript.Shell")
+
+    'pinche miranda cula
+    Set ws2 = Worksheets(3)
+
+    
+    'Esta linea es unicamente por motivos de testeo:
+    'headDocQnty = 2
+    
+    headDocQnty = ws2.Range("E1").value
+    
+    Worksheets(2).Range("H4").value = headDocQnty
+    
+    Set shell = CreateObject("WScript.Shell")
+    
+    Sheets("Scrap_list").Activate
+    
+    
+    For i = 1 To headDocQnty
+    
+        'Worksheets(2).Range("H5").Value = i
+        
+        documento = ws2.Range("A2").Offset(i - 1).value
+        
+        Sheets("Scrap_list").Range("$A$1:$E$9999").AutoFilter Field:=5, Criteria1:= _
+            documento
+    
+        Columns("A:E").Select
+        Selection.Copy
+        Sheets("Sheet1").Select
+        Columns("A:G").Select
+        Application.CutCopyMode = False
+        Selection.ClearContents
+        
+        Sheets("Scrap_list").Select
+        Selection.Copy
+        Sheets("Sheet1").Select
+        
+        Range("A1").Select
+        Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks:=False, Transpose:=False
+        Columns("E:E").EntireColumn.AutoFit
+        
+        
+        Sheets("Scrap_list").Select
+        Range("E1105").Select
+        Application.CutCopyMode = False
+        
+        Columns("A:F").Select
+        With Selection.Font
+            .Color = -16776961
+            .TintAndShade = 0
+        End With
+        Rows("1:1").Select
+        With Selection.Font
+            .ColorIndex = xlAutomatic
+            .TintAndShade = 0
+        End With
+        
+        Range("E1").Select
+        
+        ActiveWorkbook.Save
+        ActiveSheet.AutoFilterMode = False
+        
+        Sheets("Sheet1").Range("I6").value = 0 + i
+        Application.Run "PERSONAL.XLSB!conexion_sap"
+        shell.Run "wscript """ & scriptPath & """", vbNormalFocus
+        
+        
+        newHour = Hour(Now())
+        newMinute = Minute(Now())
+        newSecond = Second(Now()) + 10
+        
+        waitTime = TimeSerial(newHour, newMinute, newSecond)
+        
+        Application.Wait (waitTime)
+    
+    Next i
+    
+    Columns("E:E").Select
+    Selection.Copy
+    Sheets("Sheet2").Select
+    Columns("A:A").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    ActiveSheet.Range("$A$1:$A$1275").RemoveDuplicates Columns:=1, Header:= _
+        xlYes
+    
+    Application.Run "PERSONAL.XLSB!brenda_formato"
+    
+End Sub
+
+
+Sub estandar()
+'
+' estandarizar hoja
+' v1.2
+' ultima actualizacion: 6 de Julio del 2023
+' Keyboard Shortcut: Ctrl+k
+'
+    Dim ws As Worksheet
+    Dim titulosConservar As Variant
+    Dim celda As Range
+    Dim ws2 As Worksheet
+    Dim ws3 As Worksheet
+    Dim shell As Object
+    
+    Dim lastRow As Long
+    Dim rngSource As Range, rngDestination As Range, cell As Range
+    
+    Set ws2 = ThisWorkbook.Worksheets.Add
+    Set ws = ActiveSheet
+    
+    titulosConservar = Array("Material", "Scrap Quantity", "UOM", "Cost Center", "Doc.header text")
+    
+    For Each celda In ws.Range("A1:Z1")
+        If IsError(Application.Match(celda.value, titulosConservar, 0)) Then ' Verificar si el valor de la celda no está en la lista de títulos a conservar
+            celda.EntireColumn.Delete  ' Borrar la columna si el título no está en la lista
+        End If
+    Next celda
+    
+    ws2.Range("H1").value = "Numero de casillas"
+    ws2.Range("H2").value = "Cantidad de NP"
+    ws2.Range("H3").value = "HOJAS"
+    ws2.Range("H4").value = "Fecha de captura"
+    
+    ws2.Range("i1").value = 24
+    ws2.Range("i2").value = "=COUNTA(RC[-8]:R[997]C[-8])"
+    ws2.Range("i3").value = "=ROUNDUP(R[-1]C/R[-2]C,0)"
+    ws2.Range("i4").value = "=TODAY()"
+    ws2.Range("j1").value = "Movimiento: "
+    ws2.Range("k1").value = "901"
+    
+    
+    ws2.Move After:=Worksheets(1)
+    Worksheets(1).Name = "Scrap_list"
+    Worksheets(2).Name = "Sheet1"
+    
+    
+    If ws.Range("D1").value = "Storage Location" Then
+        ws.Columns("D").Delete
+    End If
+    
+    ws.Range("G1").value = "Movimiento:"
+    ws.Range("H1").value = "901"
+    
+    Sheets.Add After:=Sheets(2)
+    
+    Sheets("Scrap_list").Select
+    Columns("E:E").Select
+    Selection.Copy
+    
+    Sheets("Sheet2").Select
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    Application.CutCopyMode = False
+    ActiveSheet.Range("A:A").RemoveDuplicates Columns:=1, Header:=xlNo
+
+    Range("E1").Select
+    ActiveCell.FormulaR1C1 = "=COUNTA(C[-4])-1"
+    
+    Sheets("Scrap_list").Select
+    ActiveSheet.Buttons.Add(456, 24.75, 189, 152.25).Select
+    Selection.OnAction = "PERSONAL.XLSB!pregunta"
+    Selection.Characters.Text = _
+        "" & Chr(10) & "INICIAR CAPTURA" & Chr(10) & "INICIAR CAPTURA" & Chr(10) & "INICIAR CAPTURA" & Chr(10) & "INICIAR CAPTURA" & Chr(10) & "INICIAR CAPTURA"
+    With Selection.Characters(Start:=1, Length:=80).Font
+        .Name = "HELVETICA"
+        .FontStyle = "Bold"
+        .Size = 18
+        .Strikethrough = False
+        .Superscript = False
+        .Subscript = False
+        .OutlineFont = False
+        .Shadow = False
+        .Underline = xlUnderlineStyleNone
+        .ColorIndex = 1
+    End With
+    
+    Application.DisplayAlerts = False ' Desactivar las alertas de confirmación
+    
+    'Se crearan las variables para una instalacion sencilla
+    Set shell = CreateObject("WScript.Shell")
+    appDataFolder = shell.ExpandEnvironmentStrings("%appdata%")
+    formato = shell.ExpandEnvironmentStrings("%appdata%\SAP\Scripts\Scrap-hoy.xlsx")
+    
+    'proceso de guardado
+    ChDir shell.ExpandEnvironmentStrings("%appdata%\SAP\Scripts")
+    ActiveWorkbook.SaveAs Filename:= _
+        formato, FileFormat:= _
+        xlOpenXMLWorkbook, CreateBackup:=False
+        
+    Application.DisplayAlerts = True ' Volver a activar las alertas
+
+End Sub
+
+Sub brenda_formato()
+'
+' brenda_formato Macro
+' version: 1.0.2
+' Ultima actualizacion: 4 de Julio del 2023
+' Desarollada por Felipe Rivera Gomez
+
+    Dim headDocQnty As Variant
+    Dim ws As Worksheet
+    Dim ws2 As Worksheet
+    Dim ws1 As Worksheet
+    Dim ws3 As Worksheet
+    Dim i As Long
+    Dim resultado As Variant
+    
+    Dim newHour As Integer
+    Dim newMinute As Integer
+    Dim newSecond As Integer
+    Dim waitTime As Date
+    Dim shell As Object
+    Dim appDataPath As String
+    appDataPath = Environ("APPDATA")
+    
+    Set shell = CreateObject("WScript.Shell")
+    
+    Dim scriptPath As String
+    
+    scriptPath = appDataPath & "\SAP\Scripts\script2.vbs"
+    
+    shell.Run "wscript """ & scriptPath & """", vbNormalFocus
+    
+    newHour = Hour(Now())
+    newMinute = Minute(Now())
+    newSecond = Second(Now()) + 30
+        
+    waitTime = TimeSerial(newHour, newMinute, newSecond)
+        
+    Application.Wait (waitTime)
+    
+    
+    
+    appDataFolder = shell.ExpandEnvironmentStrings("%appdata%")
+    formato = shell.ExpandEnvironmentStrings("%appdata%\SAP\Scripts\formato_scrap.xlsx")
+    formato_export = shell.ExpandEnvironmentStrings("%appdata%\SAP\Scripts\EXPORT.xlsx")
+    
+    Application.Workbooks.Open formato
+    
+    Sheets("Formato").Select
+    Sheets("Formato").Move After:=Workbooks("Scrap-hoy.xlsx").Sheets(3)
+    
+    Set ws1 = Worksheets(1)
+    Set ws = Worksheets(4)
+    Set ws2 = Worksheets(3)
+    
+    
+    
+    Application.Workbooks.Open formato_export
+    Sheets("Sheet1").Select
+    Sheets("Sheet1").Move After:=Workbooks("Scrap-hoy.xlsx").Sheets(4)
+
+    Set ws3 = Worksheets("Sheet1 (2)")
+    
+    headDocQnty = ws2.Range("E1").value
+    
+    For i = 1 To headDocQnty
+        
+        numero = ws2.Range("A2").Offset(i - 1).value
+        
+        resultado = Application.WorksheetFunction.XLookup(numero, ws1.Range("E:E"), ws1.Range("D:D"), "No capturado")
+
+        ws.Range("A4").Offset(i - 1) = numero
+        ws.Range("C4").Offset(i - 1) = resultado
+        
+        resultado = Application.VLookup(ws.Range("C4"), ws.Range("G2:H18"), 2, False)
+        ws.Range("D4").Offset(i - 1) = resultado
+        
+        resultado = Application.WorksheetFunction.XLookup(numero, ws3.Range("J:J"), ws3.Range("F:F"), "No capturado")
+        ws.Range("B4").Offset(i - 1) = resultado
+        
+        resultado = Application.WorksheetFunction.SumIf(ws3.Range("J:J"), numero, ws3.Range("O:O"))
+        ws.Range("E4").Offset(i - 1) = resultado
+        
+    Next i
+    
+    Worksheets(5).Name = "Export"
+    Worksheets(4).Columns("F:J").Delete
+    
+End Sub
+
+
